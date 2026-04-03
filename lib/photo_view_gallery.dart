@@ -1,5 +1,3 @@
-library photo_view_gallery;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view.dart'
@@ -35,16 +33,16 @@ typedef PhotoViewGalleryBuilder = PhotoViewGalleryPageOptions Function(
 /// PhotoViewGallery(
 ///   pageOptions: <PhotoViewGalleryPageOptions>[
 ///     PhotoViewGalleryPageOptions(
-///       imageProvider: AssetImage("assets/gallery1.jpg"),
+///       imageProvider: createImageObject("assets/gallery1.jpg"),
 ///       heroAttributes: const PhotoViewHeroAttributes(tag: "tag1"),
 ///     ),
 ///     PhotoViewGalleryPageOptions(
-///       imageProvider: AssetImage("assets/gallery2.jpg"),
+///       imageProvider: createImageObject("assets/gallery2.jpg"),
 ///       heroAttributes: const PhotoViewHeroAttributes(tag: "tag2"),
 ///       maxScale: PhotoViewComputedScale.contained * 0.3
 ///     ),
 ///     PhotoViewGalleryPageOptions(
-///       imageProvider: AssetImage("assets/gallery3.jpg"),
+///       imageProvider: createImageObject("assets/gallery3.jpg"),
 ///       minScale: PhotoViewComputedScale.contained * 0.8,
 ///       maxScale: PhotoViewComputedScale.covered * 1.1,
 ///       heroAttributes: const HeroAttributes(tag: "tag3"),
@@ -74,7 +72,7 @@ typedef PhotoViewGalleryBuilder = PhotoViewGalleryPageOptions Function(
 ///   scrollPhysics: const BouncingScrollPhysics(),
 ///   builder: (BuildContext context, int index) {
 ///     return PhotoViewGalleryPageOptions(
-///       imageProvider: AssetImage(widget.galleryItems[index].image),
+///       imageProvider: createImageObject(widget.galleryItems[index].image),
 ///       initialScale: PhotoViewComputedScale.contained * 0.8,
 ///       minScale: PhotoViewComputedScale.contained * 0.8,
 ///       maxScale: PhotoViewComputedScale.covered * 1.1,
@@ -102,8 +100,10 @@ typedef PhotoViewGalleryBuilder = PhotoViewGalleryPageOptions Function(
 class PhotoViewGallery extends StatefulWidget {
   /// Construct a gallery with static items through a list of [PhotoViewGalleryPageOptions].
   const PhotoViewGallery({
-    Key? key,
+    super.key,
     required this.pageOptions,
+    this.onScaleUpdate,
+    this.onScaleStart,
     this.loadingBuilder,
     this.backgroundDecoration,
     this.wantKeepAlive = false,
@@ -117,20 +117,18 @@ class PhotoViewGallery extends StatefulWidget {
     this.scrollDirection = Axis.horizontal,
     this.customSize,
     this.allowImplicitScrolling = false,
-    this.pageSnapping = true,
-    this.onScaleStart,
-    this.onScaleUpdate,
   })  : itemCount = null,
-        builder = null,
-        super(key: key);
+        builder = null;
 
   /// Construct a gallery with dynamic items.
   ///
   /// The builder must return a [PhotoViewGalleryPageOptions].
   const PhotoViewGallery.builder({
-    Key? key,
+    super.key,
     required this.itemCount,
     required this.builder,
+    this.onScaleUpdate,
+    this.onScaleStart,
     this.loadingBuilder,
     this.backgroundDecoration,
     this.wantKeepAlive = false,
@@ -144,13 +142,9 @@ class PhotoViewGallery extends StatefulWidget {
     this.scrollDirection = Axis.horizontal,
     this.customSize,
     this.allowImplicitScrolling = false,
-    this.pageSnapping = true,
-    this.onScaleStart,
-    this.onScaleUpdate,
   })  : pageOptions = null,
         assert(itemCount != null),
-        assert(builder != null),
-        super(key: key);
+        assert(builder != null);
 
   /// A list of options to describe the items in the gallery
   final List<PhotoViewGalleryPageOptions>? pageOptions;
@@ -200,13 +194,10 @@ class PhotoViewGallery extends StatefulWidget {
   /// When user attempts to move it to the next element, focus will traverse to the next page in the page view.
   final bool allowImplicitScrolling;
 
-  final bool pageSnapping;
-
-  final GestureScaleStartCallback? onScaleStart;
-
-  final GestureScaleUpdateCallback? onScaleUpdate;
-
   bool get _isBuilder => builder != null;
+
+  final Function(ScaleUpdateDetails details)? onScaleUpdate;
+  final Function(ScaleStartDetails details)? onScaleStart;
 
   @override
   State<StatefulWidget> createState() {
@@ -249,7 +240,6 @@ class _PhotoViewGalleryState extends State<PhotoViewGallery> {
         scrollDirection: widget.scrollDirection,
         physics: widget.scrollPhysics,
         allowImplicitScrolling: widget.allowImplicitScrolling,
-        pageSnapping: widget.pageSnapping,
       ),
     );
   }
@@ -261,7 +251,6 @@ class _PhotoViewGalleryState extends State<PhotoViewGallery> {
     final PhotoView photoView = isCustomChild
         ? PhotoView.customChild(
             key: ObjectKey(index),
-            child: pageOption.child,
             childSize: pageOption.childSize,
             backgroundDecoration: widget.backgroundDecoration,
             wantKeepAlive: widget.wantKeepAlive,
@@ -283,6 +272,9 @@ class _PhotoViewGalleryState extends State<PhotoViewGallery> {
             filterQuality: pageOption.filterQuality,
             basePosition: pageOption.basePosition,
             disableGestures: pageOption.disableGestures,
+            onScaleUpdate: widget.onScaleUpdate,
+            onScaleStart: widget.onScaleStart,
+            child: pageOption.child,
           )
         : PhotoView(
             key: ObjectKey(index),
@@ -293,7 +285,6 @@ class _PhotoViewGalleryState extends State<PhotoViewGallery> {
             controller: pageOption.controller,
             scaleStateController: pageOption.scaleStateController,
             customSize: widget.customSize,
-            semanticLabel: pageOption.semanticLabel,
             gaplessPlayback: widget.gaplessPlayback,
             heroAttributes: pageOption.heroAttributes,
             scaleStateChangedCallback: scaleStateChangedCallback,
@@ -311,6 +302,8 @@ class _PhotoViewGalleryState extends State<PhotoViewGallery> {
             basePosition: pageOption.basePosition,
             disableGestures: pageOption.disableGestures,
             errorBuilder: pageOption.errorBuilder,
+            onScaleUpdate: widget.onScaleUpdate,
+            onScaleStart: widget.onScaleStart,
           );
 
     return ClipRect(
@@ -336,7 +329,6 @@ class PhotoViewGalleryPageOptions {
     Key? key,
     required this.imageProvider,
     this.heroAttributes,
-    this.semanticLabel,
     this.minScale,
     this.maxScale,
     this.initialScale,
@@ -358,7 +350,6 @@ class PhotoViewGalleryPageOptions {
 
   PhotoViewGalleryPageOptions.customChild({
     required this.child,
-    this.semanticLabel,
     this.childSize,
     this.heroAttributes,
     this.minScale,
@@ -383,9 +374,6 @@ class PhotoViewGalleryPageOptions {
 
   /// Mirror to [PhotoView.heroAttributes]
   final PhotoViewHeroAttributes? heroAttributes;
-
-  /// Mirror to [PhotoView.semanticLabel]
-  final String? semanticLabel;
 
   /// Mirror to [PhotoView.minScale]
   final dynamic minScale;

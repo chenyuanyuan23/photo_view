@@ -1,5 +1,3 @@
-library photo_view;
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 
@@ -39,7 +37,6 @@ export 'src/utils/photo_view_hero_attributes.dart';
 ///            ),
 ///          ),
 ///  backgroundDecoration: BoxDecoration(color: Colors.black),
-///  semanticLabel: 'Some label',
 ///  gaplessPlayback: false,
 ///  customSize: MediaQuery.of(context).size,
 ///  heroAttributes: const HeroAttributes(
@@ -70,7 +67,6 @@ export 'src/utils/photo_view_hero_attributes.dart';
 ///  ),
 ///  childSize: const Size(220.0, 250.0),
 ///  backgroundDecoration: BoxDecoration(color: Colors.black),
-///  semanticLabel: 'Some label',
 ///  gaplessPlayback: false,
 ///  customSize: MediaQuery.of(context).size,
 ///  heroAttributes: const HeroAttributes(
@@ -117,7 +113,7 @@ export 'src/utils/photo_view_hero_attributes.dart';
 ///   ...
 ///   Hero(
 ///     tag: "someTag",
-///     child: Image.asset(
+///     child: createImage(
 ///       "assets/large-image.jpg",
 ///       width: 150.0
 ///     ),
@@ -125,7 +121,7 @@ export 'src/utils/photo_view_hero_attributes.dart';
 /// // screen2
 /// ...
 /// child: PhotoView(
-///   imageProvider: AssetImage("assets/large-image.jpg"),
+///   imageProvider: createImageObject("assets/large-image.jpg"),
 ///   heroAttributes: const HeroAttributes(tag: "someTag"),
 /// )
 /// ```
@@ -175,7 +171,7 @@ export 'src/utils/photo_view_hero_attributes.dart';
 ///       children: <Widget>[
 ///         Positioned.fill(
 ///             child: PhotoView(
-///               imageProvider: AssetImage("assets/pudim.png"),
+///               imageProvider: createImageObject("assets/pudim.png"),
 ///               controller: controller,
 ///             );
 ///         ),
@@ -214,7 +210,7 @@ export 'src/utils/photo_view_hero_attributes.dart';
 ///       children: <Widget>[
 ///         Positioned.fill(
 ///             child: PhotoView(
-///               imageProvider: AssetImage("assets/pudim.png"),
+///               imageProvider: createImageObject("assets/pudim.png"),
 ///               scaleStateController: scaleStateController,
 ///             );
 ///         ),
@@ -235,13 +231,14 @@ class PhotoView extends StatefulWidget {
   /// image providers, ie: [AssetImage] or [NetworkImage]
   ///
   /// Internally, the image is rendered within an [Image] widget.
-  PhotoView({
-    Key? key,
+  const PhotoView({
+    super.key,
     required this.imageProvider,
+    this.onScaleUpdate,
+    this.onScaleStart,
     this.loadingBuilder,
     this.backgroundDecoration,
     this.wantKeepAlive = false,
-    this.semanticLabel,
     this.gaplessPlayback = false,
     this.heroAttributes,
     this.scaleStateChangedCallback,
@@ -263,10 +260,8 @@ class PhotoView extends StatefulWidget {
     this.disableGestures,
     this.errorBuilder,
     this.enablePanAlways,
-    this.strictScale,
   })  : child = null,
-        childSize = null,
-        super(key: key);
+        childSize = null;
 
   /// Creates a widget that displays a zoomable child.
   ///
@@ -274,8 +269,8 @@ class PhotoView extends StatefulWidget {
   ///
   /// Instead of a [imageProvider], this constructor will receive a [child] and a [childSize].
   ///
-  PhotoView.customChild({
-    Key? key,
+  const PhotoView.customChild({
+    super.key,
     required this.child,
     this.childSize,
     this.backgroundDecoration,
@@ -299,13 +294,12 @@ class PhotoView extends StatefulWidget {
     this.filterQuality,
     this.disableGestures,
     this.enablePanAlways,
-    this.strictScale,
+    this.onScaleUpdate,
+    this.onScaleStart,
   })  : errorBuilder = null,
         imageProvider = null,
-        semanticLabel = null,
         gaplessPlayback = false,
-        loadingBuilder = null,
-        super(key: key);
+        loadingBuilder = null;
 
   /// Given a [imageProvider] it resolves into an zoomable image widget using. It
   /// is required
@@ -325,11 +319,6 @@ class PhotoView extends StatefulWidget {
   /// `false` -> resets the state (default)
   /// `true`  -> keeps the state
   final bool wantKeepAlive;
-
-  /// A Semantic description of the image.
-  ///
-  /// Used to provide a description of the image to TalkBack on Android, and VoiceOver on iOS.
-  final String? semanticLabel;
 
   /// This is used to continue showing the old image (`true`), or briefly show
   /// nothing (`false`), when the `imageProvider` changes. By default it's set
@@ -413,8 +402,8 @@ class PhotoView extends StatefulWidget {
   /// Useful when you want to drag a widget without restrictions.
   final bool? enablePanAlways;
 
-  /// Enable strictScale will restrict user scale gesture to the maxScale and minScale values.
-  final bool? strictScale;
+  final Function(ScaleUpdateDetails details)? onScaleUpdate;
+  final Function(ScaleStartDetails details)? onScaleStart;
 
   bool get _isCustomChild {
     return child != null;
@@ -435,7 +424,7 @@ class _PhotoViewState extends State<PhotoView>
   late PhotoViewControllerBase _controller;
   late bool _controlledScaleStateController;
   late PhotoViewScaleStateController _scaleStateController;
-
+  
   // Stream subscription for proper cleanup
   StreamSubscription<PhotoViewScaleState>? _scaleStateSubscription;
 
@@ -459,6 +448,7 @@ class _PhotoViewState extends State<PhotoView>
       _scaleStateController = widget.scaleStateController!;
     }
 
+    // 使用StreamSubscription来管理监听器
     _scaleStateSubscription = _scaleStateController.outputScaleStateStream.listen(scaleStateListener);
   }
 
@@ -488,13 +478,15 @@ class _PhotoViewState extends State<PhotoView>
 
   @override
   void dispose() {
+    // 取消Stream订阅
     try {
       _scaleStateSubscription?.cancel();
       _scaleStateSubscription = null;
     } catch (e) {
       debugPrint('PhotoView dispose subscription error: $e');
     }
-
+    
+    // 释放控制器
     try {
       if (_controlledController) {
         _controller.dispose();
@@ -502,7 +494,7 @@ class _PhotoViewState extends State<PhotoView>
     } catch (e) {
       debugPrint('PhotoView dispose controller error: $e');
     }
-
+    
     try {
       if (_controlledScaleStateController) {
         _scaleStateController.dispose();
@@ -510,7 +502,7 @@ class _PhotoViewState extends State<PhotoView>
     } catch (e) {
       debugPrint('PhotoView dispose scaleStateController error: $e');
     }
-
+    
     super.dispose();
   }
 
@@ -534,7 +526,6 @@ class _PhotoViewState extends State<PhotoView>
 
         return widget._isCustomChild
             ? CustomChildWrapper(
-                child: widget.child,
                 childSize: widget.childSize,
                 backgroundDecoration: backgroundDecoration,
                 heroAttributes: widget.heroAttributes,
@@ -556,13 +547,14 @@ class _PhotoViewState extends State<PhotoView>
                 filterQuality: widget.filterQuality,
                 disableGestures: widget.disableGestures,
                 enablePanAlways: widget.enablePanAlways,
-                strictScale: widget.strictScale,
+                onScaleUpdate: widget.onScaleUpdate,
+                onScaleStart: widget.onScaleStart,
+                child: widget.child,
               )
             : ImageWrapper(
                 imageProvider: widget.imageProvider!,
                 loadingBuilder: widget.loadingBuilder,
                 backgroundDecoration: backgroundDecoration,
-                semanticLabel: widget.semanticLabel,
                 gaplessPlayback: widget.gaplessPlayback,
                 heroAttributes: widget.heroAttributes,
                 scaleStateChangedCallback: widget.scaleStateChangedCallback,
@@ -584,7 +576,8 @@ class _PhotoViewState extends State<PhotoView>
                 disableGestures: widget.disableGestures,
                 errorBuilder: widget.errorBuilder,
                 enablePanAlways: widget.enablePanAlways,
-                strictScale: widget.strictScale,
+                onScaleUpdate: widget.onScaleUpdate,
+                onScaleStart: widget.onScaleStart,
               );
       },
     );
@@ -606,9 +599,7 @@ PhotoViewScaleState defaultScaleStateCycle(PhotoViewScaleState actual) {
     case PhotoViewScaleState.zoomedIn:
     case PhotoViewScaleState.zoomedOut:
       return PhotoViewScaleState.initial;
-    default:
-      return PhotoViewScaleState.initial;
-  }
+    }
 }
 
 /// A type definition for a [Function] that receives the actual [PhotoViewScaleState] and returns the next one
