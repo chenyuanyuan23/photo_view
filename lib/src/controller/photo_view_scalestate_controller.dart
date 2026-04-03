@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show VoidCallback;
 import 'package:photo_view/src/photo_view_scale_state.dart';
 import 'package:photo_view/src/utils/ignorable_change_notifier.dart';
 
@@ -62,23 +64,18 @@ class PhotoViewScaleStateController {
   /// Closes streams and removes eventual listeners
   void dispose() {
     try {
-      // 移除监听器
       _scaleStateNotifier.removeListener(_scaleStateChangeListener);
     } catch (e) {
       debugPrint('PhotoViewScaleStateController dispose listener error: $e');
     }
-    
     try {
-      // 确保StreamController正确关闭
       if (!_outputScaleStateCtrl.isClosed) {
         _outputScaleStateCtrl.close();
       }
     } catch (e) {
       debugPrint('PhotoViewScaleStateController dispose StreamController error: $e');
     }
-    
     try {
-      // 清理ValueNotifier
       _scaleStateNotifier.dispose();
     } catch (e) {
       debugPrint('PhotoViewScaleStateController dispose ValueNotifier error: $e');

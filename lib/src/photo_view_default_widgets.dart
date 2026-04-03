@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class PhotoViewDefaultError extends StatelessWidget {
-  const PhotoViewDefaultError({super.key, required this.decoration});
+  const PhotoViewDefaultError({Key? key, required this.decoration})
+      : super(key: key);
 
   final BoxDecoration decoration;
 
@@ -21,7 +22,7 @@ class PhotoViewDefaultError extends StatelessWidget {
 }
 
 class PhotoViewDefaultLoading extends StatelessWidget {
-  const PhotoViewDefaultLoading({super.key, this.event});
+  const PhotoViewDefaultLoading({Key? key, this.event}) : super(key: key);
 
   final ImageChunkEvent? event;
 
@@ -34,7 +35,7 @@ class PhotoViewDefaultLoading extends StatelessWidget {
         : null;
 
     return Center(
-      child: SizedBox(
+      child: Container(
         width: 20.0,
         height: 20.0,
         child: CircularProgressIndicator(value: value),

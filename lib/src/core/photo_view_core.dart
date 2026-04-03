@@ -14,17 +14,18 @@ import 'package:photo_view/src/core/photo_view_gesture_detector.dart';
 import 'package:photo_view/src/core/photo_view_hit_corners.dart';
 import 'package:photo_view/src/utils/photo_view_utils.dart';
 
-const _defaultDecoration = BoxDecoration(
-  color: Color.fromRGBO(0, 0, 0, 1.0),
+const _defaultDecoration = const BoxDecoration(
+  color: const Color.fromRGBO(0, 0, 0, 1.0),
 );
 
 /// Internal widget in which controls all animations lifecycle, core responses
 /// to user gestures, updates to  the controller state and mounts the entire PhotoView Layout
 class PhotoViewCore extends StatefulWidget {
   const PhotoViewCore({
-    super.key,
+    Key? key,
     required this.imageProvider,
     required this.backgroundDecoration,
+    required this.semanticLabel,
     required this.gaplessPlayback,
     required this.heroAttributes,
     required this.enableRotation,
@@ -41,12 +42,14 @@ class PhotoViewCore extends StatefulWidget {
     required this.filterQuality,
     required this.disableGestures,
     required this.enablePanAlways,
+    required this.strictScale,
     this.onScaleUpdate,
     this.onScaleStart,
-  })  : customChild = null;
+  })  : customChild = null,
+        super(key: key);
 
   const PhotoViewCore.customChild({
-    super.key,
+    Key? key,
     required this.customChild,
     required this.backgroundDecoration,
     this.heroAttributes,
@@ -64,13 +67,17 @@ class PhotoViewCore extends StatefulWidget {
     required this.filterQuality,
     required this.disableGestures,
     required this.enablePanAlways,
+    required this.strictScale,
     this.onScaleUpdate,
     this.onScaleStart,
   })  : imageProvider = null,
-        gaplessPlayback = false;
+        semanticLabel = null,
+        gaplessPlayback = false,
+        super(key: key);
 
   final Decoration? backgroundDecoration;
   final ImageProvider? imageProvider;
+  final String? semanticLabel;
   final bool? gaplessPlayback;
   final PhotoViewHeroAttributes? heroAttributes;
   final bool enableRotation;
@@ -81,16 +88,19 @@ class PhotoViewCore extends StatefulWidget {
   final ScaleBoundaries scaleBoundaries;
   final ScaleStateCycle scaleStateCycle;
   final Alignment basePosition;
-  final Function(ScaleUpdateDetails details)? onScaleUpdate;
-  final Function(ScaleStartDetails details)? onScaleStart;
+
   final PhotoViewImageTapUpCallback? onTapUp;
   final PhotoViewImageTapDownCallback? onTapDown;
   final PhotoViewImageScaleEndCallback? onScaleEnd;
+
+  final Function(ScaleUpdateDetails details)? onScaleUpdate;
+  final Function(ScaleStartDetails details)? onScaleStart;
 
   final HitTestBehavior? gestureDetectorBehavior;
   final bool tightMode;
   final bool disableGestures;
   final bool enablePanAlways;
+  final bool strictScale;
 
   final FilterQuality filterQuality;
 
@@ -138,23 +148,30 @@ class PhotoViewCoreState extends State<PhotoViewCore>
   }
 
   void onScaleStart(ScaleStartDetails details) {
-    if (widget.onScaleStart != null) {
-      widget.onScaleStart!(details);
-    }
     _rotationBefore = controller.rotation;
     _scaleBefore = scale;
     _normalizedPosition = details.focalPoint - controller.position;
     _scaleAnimationController.stop();
     _positionAnimationController.stop();
     _rotationAnimationController.stop();
+    if (widget.onScaleStart != null) {
+      widget.onScaleStart!(details);
+    }
   }
 
   void onScaleUpdate(ScaleUpdateDetails details) {
-    final double newScale = _scaleBefore! * details.scale;
-    final Offset delta = details.focalPoint - _normalizedPosition!;
     if (widget.onScaleUpdate != null) {
       widget.onScaleUpdate!(details);
     }
+    final double newScale = _scaleBefore! * details.scale;
+    final Offset delta = details.focalPoint - _normalizedPosition!;
+
+    if (widget.strictScale &&
+        (newScale > widget.scaleBoundaries.maxScale ||
+            newScale < widget.scaleBoundaries.minScale)) {
+      return;
+    }
+
     updateScaleStateFromNewScale(newScale);
 
     updateMultiple(
@@ -169,33 +186,33 @@ class PhotoViewCoreState extends State<PhotoViewCore>
   }
 
   void onScaleEnd(ScaleEndDetails details) {
-    final double scaleSnap = scale;
-    final Offset positionSnap = controller.position;
+    final double _scale = scale;
+    final Offset _position = controller.position;
     final double maxScale = scaleBoundaries.maxScale;
     final double minScale = scaleBoundaries.minScale;
 
     widget.onScaleEnd?.call(context, details, controller.value);
 
     //animate back to maxScale if gesture exceeded the maxScale specified
-    if (scaleSnap > maxScale) {
-      final double scaleComebackRatio = maxScale / scaleSnap;
-      animateScale(scaleSnap, maxScale);
+    if (_scale > maxScale) {
+      final double scaleComebackRatio = maxScale / _scale;
+      animateScale(_scale, maxScale);
       final Offset clampedPosition = clampPosition(
-        position: positionSnap * scaleComebackRatio,
+        position: _position * scaleComebackRatio,
         scale: maxScale,
       );
-      animatePosition(positionSnap, clampedPosition);
+      animatePosition(_position, clampedPosition);
       return;
     }
 
     //animate back to minScale if gesture fell smaller than the minScale specified
-    if (scaleSnap < minScale) {
-      final double scaleComebackRatio = minScale / scaleSnap;
-      animateScale(scaleSnap, minScale);
+    if (_scale < minScale) {
+      final double scaleComebackRatio = minScale / _scale;
+      animateScale(_scale, minScale);
       animatePosition(
-        positionSnap,
+        _position,
         clampPosition(
-          position: positionSnap * scaleComebackRatio,
+          position: _position * scaleComebackRatio,
           scale: minScale,
         ),
       );
@@ -205,11 +222,11 @@ class PhotoViewCoreState extends State<PhotoViewCore>
     final double magnitude = details.velocity.pixelsPerSecond.distance;
 
     // animate velocity only if there is no scale change and a significant magnitude
-    if (_scaleBefore! / scaleSnap == 1.0 && magnitude >= 400.0) {
+    if (_scaleBefore! / _scale == 1.0 && magnitude >= 400.0) {
       final Offset direction = details.velocity.pixelsPerSecond / magnitude;
       animatePosition(
-        positionSnap,
-        clampPosition(position: positionSnap + direction * 100.0),
+        _position,
+        clampPosition(position: _position + direction * 100.0),
       );
     }
   }
@@ -282,26 +299,21 @@ class PhotoViewCoreState extends State<PhotoViewCore>
   @override
   void dispose() {
     try {
-      // 移除监听器
       _scaleAnimationController.removeStatusListener(onAnimationStatus);
       _scaleAnimationController.removeListener(handleScaleAnimation);
     } catch (e) {
       debugPrint('PhotoViewCoreState dispose scale animation listeners error: $e');
     }
-    
     try {
       _positionAnimationController.removeListener(handlePositionAnimate);
     } catch (e) {
       debugPrint('PhotoViewCoreState dispose position animation listener error: $e');
     }
-    
     try {
       _rotationAnimationController.removeListener(handleRotationAnimation);
     } catch (e) {
       debugPrint('PhotoViewCoreState dispose rotation animation listener error: $e');
     }
-    
-    // 停止所有动画
     try {
       _scaleAnimationController.stop();
       _positionAnimationController.stop();
@@ -309,31 +321,24 @@ class PhotoViewCoreState extends State<PhotoViewCore>
     } catch (e) {
       debugPrint('PhotoViewCoreState stop animations error: $e');
     }
-    
-    // 释放AnimationController资源
     try {
       _scaleAnimationController.dispose();
     } catch (e) {
       debugPrint('PhotoViewCoreState dispose scale animation controller error: $e');
     }
-    
     try {
       _positionAnimationController.dispose();
     } catch (e) {
       debugPrint('PhotoViewCoreState dispose position animation controller error: $e');
     }
-    
     try {
       _rotationAnimationController.dispose();
     } catch (e) {
       debugPrint('PhotoViewCoreState dispose rotation animation controller error: $e');
     }
-    
-    // 清空动画引用
     _scaleAnimation = null;
     _positionAnimation = null;
     _rotationAnimation = null;
-    
     super.dispose();
   }
 
@@ -367,8 +372,8 @@ class PhotoViewCoreState extends State<PhotoViewCore>
             final computedScale = useImageScale ? 1.0 : scale;
 
             final matrix = Matrix4.identity()
-              ..translateByDouble(value.position.dx, value.position.dy, 0, 1)
-              ..scaleByDouble(computedScale, computedScale, computedScale, 1)
+              ..translate(value.position.dx, value.position.dy)
+              ..scale(computedScale)
               ..rotateZ(value.rotation);
 
             final Widget customChildLayout = CustomSingleChildLayout(
@@ -384,14 +389,14 @@ class PhotoViewCoreState extends State<PhotoViewCore>
               constraints: widget.tightMode
                   ? BoxConstraints.tight(scaleBoundaries.childSize * scale)
                   : null,
-              decoration: widget.backgroundDecoration ?? _defaultDecoration,
               child: Center(
                 child: Transform(
+                  child: customChildLayout,
                   transform: matrix,
                   alignment: basePosition,
-                  child: customChildLayout,
                 ),
               ),
+              decoration: widget.backgroundDecoration ?? _defaultDecoration,
             );
 
             if (widget.disableGestures) {
@@ -399,6 +404,7 @@ class PhotoViewCoreState extends State<PhotoViewCore>
             }
 
             return PhotoViewGestureDetector(
+              child: child,
               onDoubleTap: nextScaleState,
               onScaleStart: onScaleStart,
               onScaleUpdate: onScaleUpdate,
@@ -410,7 +416,6 @@ class PhotoViewCoreState extends State<PhotoViewCore>
               onTapDown: widget.onTapDown != null
                   ? (details) => widget.onTapDown!(context, details, value)
                   : null,
-              child: child,
             );
           } else {
             return Container();
@@ -419,26 +424,25 @@ class PhotoViewCoreState extends State<PhotoViewCore>
   }
 
   Widget _buildHero() {
-    // 关键处理：将原始类型的 tag 转换为合法对象
-    final Object safeTag = _convertToSafeTag(heroAttributes?.tag ?? false);
-    return heroAttributes != null
-        ? Hero(
-            tag: safeTag,
-            createRectTween: heroAttributes!.createRectTween,
-            flightShuttleBuilder: heroAttributes!.flightShuttleBuilder,
-            placeholderBuilder: heroAttributes!.placeholderBuilder,
-            transitionOnUserGestures: heroAttributes!.transitionOnUserGestures,
-            child: _buildChild(),
-          )
-        : _buildChild();
+    if (heroAttributes != null) {
+      final Object safeTag = _convertToSafeTag(heroAttributes?.tag ?? false);
+      return Hero(
+        tag: safeTag,
+        createRectTween: heroAttributes!.createRectTween,
+        flightShuttleBuilder: heroAttributes!.flightShuttleBuilder,
+        placeholderBuilder: heroAttributes!.placeholderBuilder,
+        transitionOnUserGestures: heroAttributes!.transitionOnUserGestures,
+        child: _buildChild(),
+      );
+    }
+    return _buildChild();
   }
 
-  // 将原始类型转换为 ValueKey，对象类型直接返回
   Object _convertToSafeTag(Object rawTag) {
     if (rawTag is num || rawTag is String || rawTag is bool) {
-      return ValueKey(rawTag); // 包装原始类型
+      return ValueKey(rawTag);
     }
-    return rawTag; // 已经是合法对象
+    return rawTag;
   }
 
   Widget _buildChild() {
@@ -446,6 +450,7 @@ class PhotoViewCoreState extends State<PhotoViewCore>
         ? widget.customChild!
         : Image(
             image: widget.imageProvider!,
+            semanticLabel: widget.semanticLabel,
             gaplessPlayback: widget.gaplessPlayback ?? false,
             filterQuality: widget.filterQuality,
             width: scaleBoundaries.childSize.width * scale,
