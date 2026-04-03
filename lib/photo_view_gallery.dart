@@ -118,6 +118,8 @@ class PhotoViewGallery extends StatefulWidget {
     this.customSize,
     this.allowImplicitScrolling = false,
     this.pageSnapping = true,
+    this.onScaleStart,
+    this.onScaleUpdate,
   })  : itemCount = null,
         builder = null,
         super(key: key);
@@ -143,6 +145,8 @@ class PhotoViewGallery extends StatefulWidget {
     this.customSize,
     this.allowImplicitScrolling = false,
     this.pageSnapping = true,
+    this.onScaleStart,
+    this.onScaleUpdate,
   })  : pageOptions = null,
         assert(itemCount != null),
         assert(builder != null),
@@ -197,6 +201,10 @@ class PhotoViewGallery extends StatefulWidget {
   final bool allowImplicitScrolling;
 
   final bool pageSnapping;
+
+  final GestureScaleStartCallback? onScaleStart;
+
+  final GestureScaleUpdateCallback? onScaleUpdate;
 
   bool get _isBuilder => builder != null;
 
