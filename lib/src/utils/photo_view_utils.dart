@@ -21,10 +21,7 @@ double getScaleForScaleState(
           scaleBoundaries);
     case PhotoViewScaleState.originalSize:
       return _clampSize(1.0, scaleBoundaries);
-    // Will never be reached
-    default:
-      return 0;
-  }
+    }
 }
 
 /// Internal class to wraps custom scale boundaries (min, max and initial)
@@ -48,11 +45,11 @@ class ScaleBoundaries {
     assert(_minScale is double || _minScale is PhotoViewComputedScale);
     if (_minScale == PhotoViewComputedScale.contained) {
       return _scaleForContained(outerSize, childSize) *
-          (_minScale as PhotoViewComputedScale).multiplier; // ignore: avoid_as
+          (_minScale as PhotoViewComputedScale).multiplier;
     }
     if (_minScale == PhotoViewComputedScale.covered) {
       return _scaleForCovering(outerSize, childSize) *
-          (_minScale as PhotoViewComputedScale).multiplier; // ignore: avoid_as
+          (_minScale as PhotoViewComputedScale).multiplier;
     }
     assert(_minScale >= 0.0);
     return _minScale;
@@ -61,14 +58,14 @@ class ScaleBoundaries {
   double get maxScale {
     assert(_maxScale is double || _maxScale is PhotoViewComputedScale);
     if (_maxScale == PhotoViewComputedScale.contained) {
-      return (_scaleForContained(outerSize, childSize) *
-              (_maxScale as PhotoViewComputedScale) // ignore: avoid_as
-                  .multiplier)
-          .clamp(minScale, double.infinity);
+      final val = _scaleForContained(outerSize, childSize) *
+          (_maxScale as PhotoViewComputedScale)
+              .multiplier;
+      return !val.isNaN ? val.clamp(minScale, double.infinity) : 1;
     }
     if (_maxScale == PhotoViewComputedScale.covered) {
       return (_scaleForCovering(outerSize, childSize) *
-              (_maxScale as PhotoViewComputedScale) // ignore: avoid_as
+              (_maxScale as PhotoViewComputedScale)
                   .multiplier)
           .clamp(minScale, double.infinity);
     }
@@ -79,12 +76,12 @@ class ScaleBoundaries {
     assert(_initialScale is double || _initialScale is PhotoViewComputedScale);
     if (_initialScale == PhotoViewComputedScale.contained) {
       return _scaleForContained(outerSize, childSize) *
-          (_initialScale as PhotoViewComputedScale) // ignore: avoid_as
+          (_initialScale as PhotoViewComputedScale)
               .multiplier;
     }
     if (_initialScale == PhotoViewComputedScale.covered) {
       return _scaleForCovering(outerSize, childSize) *
-          (_initialScale as PhotoViewComputedScale) // ignore: avoid_as
+          (_initialScale as PhotoViewComputedScale)
               .multiplier;
     }
     return _initialScale.clamp(minScale, maxScale);
@@ -131,6 +128,9 @@ double _scaleForCovering(Size size, Size childSize) {
 }
 
 double _clampSize(double size, ScaleBoundaries scaleBoundaries) {
+  if (scaleBoundaries.minScale.isNaN || scaleBoundaries.maxScale.isNaN) {
+    return 1;
+  }
   return size.clamp(scaleBoundaries.minScale, scaleBoundaries.maxScale);
 }
 

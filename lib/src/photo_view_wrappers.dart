@@ -7,11 +7,10 @@ import 'utils/photo_view_utils.dart';
 
 class ImageWrapper extends StatefulWidget {
   const ImageWrapper({
-    Key? key,
+    super.key,
     required this.imageProvider,
     required this.loadingBuilder,
     required this.backgroundDecoration,
-    required this.semanticLabel,
     required this.gaplessPlayback,
     required this.heroAttributes,
     required this.scaleStateChangedCallback,
@@ -33,14 +32,14 @@ class ImageWrapper extends StatefulWidget {
     required this.disableGestures,
     required this.errorBuilder,
     required this.enablePanAlways,
-    required this.strictScale,
-  }) : super(key: key);
+    this.onScaleUpdate,
+    this.onScaleStart,
+  });
 
   final ImageProvider imageProvider;
   final LoadingBuilder? loadingBuilder;
   final ImageErrorWidgetBuilder? errorBuilder;
   final BoxDecoration backgroundDecoration;
-  final String? semanticLabel;
   final bool gaplessPlayback;
   final PhotoViewHeroAttributes? heroAttributes;
   final ValueChanged<PhotoViewScaleState>? scaleStateChangedCallback;
@@ -61,10 +60,11 @@ class ImageWrapper extends StatefulWidget {
   final FilterQuality? filterQuality;
   final bool? disableGestures;
   final bool? enablePanAlways;
-  final bool? strictScale;
+  final Function(ScaleUpdateDetails details)? onScaleUpdate;
+  final Function(ScaleStartDetails details)? onScaleStart;
 
   @override
-  _ImageWrapperState createState() => _ImageWrapperState();
+  State<ImageWrapper> createState() => _ImageWrapperState();
 }
 
 class _ImageWrapperState extends State<ImageWrapper> {
@@ -107,6 +107,9 @@ class _ImageWrapperState extends State<ImageWrapper> {
 
   ImageStreamListener _getOrCreateListener() {
     void handleImageChunk(ImageChunkEvent event) {
+      if(!mounted){
+        return;
+      }
       setState(() {
         _loadingProgress = event;
         _lastException = null;
@@ -114,7 +117,7 @@ class _ImageWrapperState extends State<ImageWrapper> {
     }
 
     void handleImageFrame(ImageInfo info, bool synchronousCall) {
-      final setupCB = () {
+      void setupCB() {
         _imageSize = Size(
           info.image.width.toDouble(),
           info.image.height.toDouble(),
@@ -125,7 +128,7 @@ class _ImageWrapperState extends State<ImageWrapper> {
         _loadingProgress = null;
         _lastException = null;
         _lastStack = null;
-      };
+      }
       synchronousCall ? setupCB() : setState(setupCB);
     }
 
@@ -186,7 +189,6 @@ class _ImageWrapperState extends State<ImageWrapper> {
     return PhotoViewCore(
       imageProvider: widget.imageProvider,
       backgroundDecoration: widget.backgroundDecoration,
-      semanticLabel: widget.semanticLabel,
       gaplessPlayback: widget.gaplessPlayback,
       enableRotation: widget.enableRotation,
       heroAttributes: widget.heroAttributes,
@@ -194,7 +196,6 @@ class _ImageWrapperState extends State<ImageWrapper> {
       controller: widget.controller,
       scaleStateController: widget.scaleStateController,
       scaleStateCycle: widget.scaleStateCycle ?? defaultScaleStateCycle,
-      strictScale: widget.strictScale ?? false,
       scaleBoundaries: scaleBoundaries,
       onTapUp: widget.onTapUp,
       onTapDown: widget.onTapDown,
@@ -204,6 +205,8 @@ class _ImageWrapperState extends State<ImageWrapper> {
       filterQuality: widget.filterQuality ?? FilterQuality.none,
       disableGestures: widget.disableGestures ?? false,
       enablePanAlways: widget.enablePanAlways ?? false,
+      onScaleUpdate: widget.onScaleUpdate,
+      onScaleStart: widget.onScaleStart,
     );
   }
 
@@ -231,7 +234,7 @@ class _ImageWrapperState extends State<ImageWrapper> {
 
 class CustomChildWrapper extends StatelessWidget {
   const CustomChildWrapper({
-    Key? key,
+    super.key,
     this.child,
     required this.childSize,
     required this.backgroundDecoration,
@@ -254,8 +257,9 @@ class CustomChildWrapper extends StatelessWidget {
     required this.filterQuality,
     required this.disableGestures,
     required this.enablePanAlways,
-    required this.strictScale,
-  }) : super(key: key);
+    this.onScaleUpdate,
+    this.onScaleStart,
+  });
 
   final Widget? child;
   final Size? childSize;
@@ -282,7 +286,8 @@ class CustomChildWrapper extends StatelessWidget {
   final FilterQuality? filterQuality;
   final bool? disableGestures;
   final bool? enablePanAlways;
-  final bool? strictScale;
+  final Function(ScaleUpdateDetails details)? onScaleUpdate;
+  final Function(ScaleStartDetails details)? onScaleStart;
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +309,6 @@ class CustomChildWrapper extends StatelessWidget {
       scaleStateCycle: scaleStateCycle ?? defaultScaleStateCycle,
       basePosition: basePosition ?? Alignment.center,
       scaleBoundaries: scaleBoundaries,
-      strictScale: strictScale ?? false,
       onTapUp: onTapUp,
       onTapDown: onTapDown,
       onScaleEnd: onScaleEnd,
@@ -313,6 +317,8 @@ class CustomChildWrapper extends StatelessWidget {
       filterQuality: filterQuality ?? FilterQuality.none,
       disableGestures: disableGestures ?? false,
       enablePanAlways: enablePanAlways ?? false,
+      onScaleUpdate: onScaleUpdate,
+      onScaleStart: onScaleStart,
     );
   }
 }

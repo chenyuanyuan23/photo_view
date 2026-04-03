@@ -175,14 +175,17 @@ class PhotoViewController
   @override
   void dispose() {
     try {
+      // 确保StreamController正确关闭
       if (!_outputCtrl.isClosed) {
         _outputCtrl.close();
       }
     } catch (e) {
+      // 忽略关闭时的异常，但确保继续执行后续清理
       debugPrint('PhotoViewController dispose StreamController error: $e');
     }
-
+    
     try {
+      // 清理ValueNotifier
       _valueNotifier.dispose();
     } catch (e) {
       debugPrint('PhotoViewController dispose ValueNotifier error: $e');

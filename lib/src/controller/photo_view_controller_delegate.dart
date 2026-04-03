@@ -56,7 +56,7 @@ mixin PhotoViewControllerDelegate on State<PhotoViewCore> {
   }
 
   void addAnimateOnScaleStateUpdate(
-    void animateScale(double prevScale, double nextScale),
+    void Function(double prevScale, double nextScale) animateScale,
   ) {
     _animateScale = animateScale;
   }
@@ -153,9 +153,9 @@ mixin PhotoViewControllerDelegate on State<PhotoViewCore> {
   }
 
   CornersRange cornersX({double? scale}) {
-    final double _scale = scale ?? this.scale;
+    final double effectiveScale = scale ?? this.scale;
 
-    final double computedWidth = scaleBoundaries.childSize.width * _scale;
+    final double computedWidth = scaleBoundaries.childSize.width * effectiveScale;
     final double screenWidth = scaleBoundaries.outerSize.width;
 
     final double positionX = basePosition.x;
@@ -167,9 +167,9 @@ mixin PhotoViewControllerDelegate on State<PhotoViewCore> {
   }
 
   CornersRange cornersY({double? scale}) {
-    final double _scale = scale ?? this.scale;
+    final double effectiveScale = scale ?? this.scale;
 
-    final double computedHeight = scaleBoundaries.childSize.height * _scale;
+    final double computedHeight = scaleBoundaries.childSize.height * effectiveScale;
     final double screenHeight = scaleBoundaries.outerSize.height;
 
     final double positionY = basePosition.y;
@@ -181,25 +181,25 @@ mixin PhotoViewControllerDelegate on State<PhotoViewCore> {
   }
 
   Offset clampPosition({Offset? position, double? scale}) {
-    final double _scale = scale ?? this.scale;
-    final Offset _position = position ?? this.position;
+    final double effectiveScale = scale ?? this.scale;
+    final Offset effectivePosition = position ?? this.position;
 
-    final double computedWidth = scaleBoundaries.childSize.width * _scale;
-    final double computedHeight = scaleBoundaries.childSize.height * _scale;
+    final double computedWidth = scaleBoundaries.childSize.width * effectiveScale;
+    final double computedHeight = scaleBoundaries.childSize.height * effectiveScale;
 
     final double screenWidth = scaleBoundaries.outerSize.width;
     final double screenHeight = scaleBoundaries.outerSize.height;
 
     double finalX = 0.0;
     if (screenWidth < computedWidth) {
-      final cornersX = this.cornersX(scale: _scale);
-      finalX = _position.dx.clamp(cornersX.min, cornersX.max);
+      final cornersX = this.cornersX(scale: effectiveScale);
+      finalX = effectivePosition.dx.clamp(cornersX.min, cornersX.max);
     }
 
     double finalY = 0.0;
     if (screenHeight < computedHeight) {
-      final cornersY = this.cornersY(scale: _scale);
-      finalY = _position.dy.clamp(cornersY.min, cornersY.max);
+      final cornersY = this.cornersY(scale: effectiveScale);
+      finalY = effectivePosition.dy.clamp(cornersY.min, cornersY.max);
     }
 
     return Offset(finalX, finalY);
@@ -207,20 +207,22 @@ mixin PhotoViewControllerDelegate on State<PhotoViewCore> {
 
   @override
   void dispose() {
+    // 清空动画回调引用
     _animateScale = null;
-
+    
+    // 安全移除监听器
     try {
       controller.removeIgnorableListener(_blindScaleListener);
     } catch (e) {
       debugPrint('PhotoViewControllerDelegate dispose controller listener error: $e');
     }
-
+    
     try {
       scaleStateController.removeIgnorableListener(_blindScaleStateListener);
     } catch (e) {
       debugPrint('PhotoViewControllerDelegate dispose scaleStateController listener error: $e');
     }
-
+    
     super.dispose();
   }
 }

@@ -29,25 +29,26 @@ class IgnorableChangeNotifier extends ChangeNotifier {
     return super.hasListeners || (_ignorableListeners?.isNotEmpty ?? false);
   }
 
-  void addIgnorableListener(listener) {
+  void addIgnorableListener(VoidCallback listener) {
     assert(_debugAssertNotDisposed());
     _ignorableListeners!.add(listener);
   }
 
-  void removeIgnorableListener(listener) {
+  void removeIgnorableListener(VoidCallback listener) {
     assert(_debugAssertNotDisposed());
     _ignorableListeners!.remove(listener);
   }
 
   @override
   void dispose() {
+    // 清理ignorable监听器
     try {
       _ignorableListeners?.clear();
       _ignorableListeners = null;
     } catch (e) {
       debugPrint('IgnorableChangeNotifier dispose ignorable listeners error: $e');
     }
-
+    
     super.dispose();
   }
 
