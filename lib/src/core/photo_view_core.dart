@@ -285,10 +285,55 @@ class PhotoViewCoreState extends State<PhotoViewCore>
 
   @override
   void dispose() {
-    _scaleAnimationController.removeStatusListener(onAnimationStatus);
-    _scaleAnimationController.dispose();
-    _positionAnimationController.dispose();
-    _rotationAnimationController.dispose();
+    try {
+      _scaleAnimationController.removeStatusListener(onAnimationStatus);
+      _scaleAnimationController.removeListener(handleScaleAnimation);
+    } catch (e) {
+      debugPrint('PhotoViewCoreState dispose scale animation listeners error: $e');
+    }
+
+    try {
+      _positionAnimationController.removeListener(handlePositionAnimate);
+    } catch (e) {
+      debugPrint('PhotoViewCoreState dispose position animation listener error: $e');
+    }
+
+    try {
+      _rotationAnimationController.removeListener(handleRotationAnimation);
+    } catch (e) {
+      debugPrint('PhotoViewCoreState dispose rotation animation listener error: $e');
+    }
+
+    try {
+      _scaleAnimationController.stop();
+      _positionAnimationController.stop();
+      _rotationAnimationController.stop();
+    } catch (e) {
+      debugPrint('PhotoViewCoreState stop animations error: $e');
+    }
+
+    try {
+      _scaleAnimationController.dispose();
+    } catch (e) {
+      debugPrint('PhotoViewCoreState dispose scale animation controller error: $e');
+    }
+
+    try {
+      _positionAnimationController.dispose();
+    } catch (e) {
+      debugPrint('PhotoViewCoreState dispose position animation controller error: $e');
+    }
+
+    try {
+      _rotationAnimationController.dispose();
+    } catch (e) {
+      debugPrint('PhotoViewCoreState dispose rotation animation controller error: $e');
+    }
+
+    _scaleAnimation = null;
+    _positionAnimation = null;
+    _rotationAnimation = null;
+
     super.dispose();
   }
 
@@ -374,9 +419,10 @@ class PhotoViewCoreState extends State<PhotoViewCore>
   }
 
   Widget _buildHero() {
+    final Object safeTag = _convertToSafeTag(heroAttributes?.tag ?? false);
     return heroAttributes != null
         ? Hero(
-            tag: heroAttributes!.tag,
+            tag: safeTag,
             createRectTween: heroAttributes!.createRectTween,
             flightShuttleBuilder: heroAttributes!.flightShuttleBuilder,
             placeholderBuilder: heroAttributes!.placeholderBuilder,
@@ -384,6 +430,13 @@ class PhotoViewCoreState extends State<PhotoViewCore>
             child: _buildChild(),
           )
         : _buildChild();
+  }
+
+  Object _convertToSafeTag(Object rawTag) {
+    if (rawTag is num || rawTag is String || rawTag is bool) {
+      return ValueKey(rawTag);
+    }
+    return rawTag;
   }
 
   Widget _buildChild() {

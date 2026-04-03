@@ -174,8 +174,19 @@ class PhotoViewController
 
   @override
   void dispose() {
-    _outputCtrl.close();
-    _valueNotifier.dispose();
+    try {
+      if (!_outputCtrl.isClosed) {
+        _outputCtrl.close();
+      }
+    } catch (e) {
+      debugPrint('PhotoViewController dispose StreamController error: $e');
+    }
+
+    try {
+      _valueNotifier.dispose();
+    } catch (e) {
+      debugPrint('PhotoViewController dispose ValueNotifier error: $e');
+    }
   }
 
   @override

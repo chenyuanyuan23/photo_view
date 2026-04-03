@@ -208,8 +208,19 @@ mixin PhotoViewControllerDelegate on State<PhotoViewCore> {
   @override
   void dispose() {
     _animateScale = null;
-    controller.removeIgnorableListener(_blindScaleListener);
-    scaleStateController.removeIgnorableListener(_blindScaleStateListener);
+
+    try {
+      controller.removeIgnorableListener(_blindScaleListener);
+    } catch (e) {
+      debugPrint('PhotoViewControllerDelegate dispose controller listener error: $e');
+    }
+
+    try {
+      scaleStateController.removeIgnorableListener(_blindScaleStateListener);
+    } catch (e) {
+      debugPrint('PhotoViewControllerDelegate dispose scaleStateController listener error: $e');
+    }
+
     super.dispose();
   }
 }

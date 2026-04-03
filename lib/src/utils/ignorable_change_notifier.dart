@@ -41,7 +41,13 @@ class IgnorableChangeNotifier extends ChangeNotifier {
 
   @override
   void dispose() {
-    _ignorableListeners = null;
+    try {
+      _ignorableListeners?.clear();
+      _ignorableListeners = null;
+    } catch (e) {
+      debugPrint('IgnorableChangeNotifier dispose ignorable listeners error: $e');
+    }
+
     super.dispose();
   }
 

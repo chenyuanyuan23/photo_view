@@ -62,8 +62,25 @@ class PhotoViewScaleStateController {
 
   /// Closes streams and removes eventual listeners
   void dispose() {
-    _outputScaleStateCtrl.close();
-    _scaleStateNotifier.dispose();
+    try {
+      _scaleStateNotifier.removeListener(_scaleStateChangeListener);
+    } catch (e) {
+      debugPrint('PhotoViewScaleStateController dispose listener error: $e');
+    }
+
+    try {
+      if (!_outputScaleStateCtrl.isClosed) {
+        _outputScaleStateCtrl.close();
+      }
+    } catch (e) {
+      debugPrint('PhotoViewScaleStateController dispose StreamController error: $e');
+    }
+
+    try {
+      _scaleStateNotifier.dispose();
+    } catch (e) {
+      debugPrint('PhotoViewScaleStateController dispose ValueNotifier error: $e');
+    }
   }
 
   /// Nevermind this method :D, look away

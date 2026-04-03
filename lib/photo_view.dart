@@ -1,5 +1,6 @@
 library photo_view;
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:photo_view/src/controller/photo_view_controller.dart';
@@ -435,6 +436,9 @@ class _PhotoViewState extends State<PhotoView>
   late bool _controlledScaleStateController;
   late PhotoViewScaleStateController _scaleStateController;
 
+  // Stream subscription for proper cleanup
+  StreamSubscription<PhotoViewScaleState>? _scaleStateSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -455,7 +459,7 @@ class _PhotoViewState extends State<PhotoView>
       _scaleStateController = widget.scaleStateController!;
     }
 
-    _scaleStateController.outputScaleStateStream.listen(scaleStateListener);
+    _scaleStateSubscription = _scaleStateController.outputScaleStateStream.listen(scaleStateListener);
   }
 
   @override
@@ -484,12 +488,29 @@ class _PhotoViewState extends State<PhotoView>
 
   @override
   void dispose() {
-    if (_controlledController) {
-      _controller.dispose();
+    try {
+      _scaleStateSubscription?.cancel();
+      _scaleStateSubscription = null;
+    } catch (e) {
+      debugPrint('PhotoView dispose subscription error: $e');
     }
-    if (_controlledScaleStateController) {
-      _scaleStateController.dispose();
+
+    try {
+      if (_controlledController) {
+        _controller.dispose();
+      }
+    } catch (e) {
+      debugPrint('PhotoView dispose controller error: $e');
     }
+
+    try {
+      if (_controlledScaleStateController) {
+        _scaleStateController.dispose();
+      }
+    } catch (e) {
+      debugPrint('PhotoView dispose scaleStateController error: $e');
+    }
+
     super.dispose();
   }
 
